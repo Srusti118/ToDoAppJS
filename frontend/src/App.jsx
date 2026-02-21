@@ -1,13 +1,17 @@
 import { useState, useEffect } from 'react'
 import './index.css'
 
+// In development: uses proxy (localhost:3001)
+// In production (Vercel): uses the Render backend URL from env variable
+const API = import.meta.env.VITE_API_URL || ''
+
 export default function App() {
     const [input, setInput] = useState('')
     const [todos, setTodos] = useState([])
 
     // Load todos from backend on mount , only executed on refreshing the page
     useEffect(() => {
-        fetch('/api/todos')
+        fetch(`${API}/api/todos`)
             .then(r => r.json())
             .then(setTodos)
             //.then(data => setTodos(data)) same thing, just shorter
@@ -17,7 +21,7 @@ export default function App() {
     async function handleSave() {
         const text = input.trim()
         if (!text) return
-        const res = await fetch('/api/todos', {
+        const res = await fetch(`${API}/api/todos`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ text }),
@@ -27,14 +31,16 @@ export default function App() {
         setInput('')
     }
 
+    //checks against the already ticked task
     async function toggleDone(id) {
-        const res = await fetch(`/api/todos/${id}`, { method: 'PATCH' })
+        const res = await fetch(`${API}/api/todos/${id}`, { method: 'PATCH' })
         const updated = await res.json()
         setTodos(todos.map(t => t.id === id ? updated : t))
     }
 
+    //added delete button --> to remove the to do
     async function handleDelete(id) {
-        await fetch(`/api/todos/${id}`, { method: 'DELETE' })
+        await fetch(`${API}/api/todos/${id}`, { method: 'DELETE' })
         setTodos(todos.filter(t => t.id !== id))
     }
 
