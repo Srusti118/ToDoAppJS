@@ -1,26 +1,47 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import './index.css'
 
 export default function App() {
     const [input, setInput] = useState('')
     const [todos, setTodos] = useState([])
 
-    function handleSave() {
+    // Load todos from backend on mount , only executed on refreshing the page
+    useEffect(() => {
+        fetch('/api/todos')
+            .then(r => r.json())
+            .then(setTodos)
+            //.then(data => setTodos(data)) same thing, just shorter
+            .catch(() => alert('Could not reach the server. Is it running?'))
+    }, [])
+
+    async function handleSave() {
         const text = input.trim()
         if (!text) return
-        setTodos([...todos, { id: Date.now(), text, done: false }])
+        const res = await fetch('/api/todos', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text }),
+        })
+        const newTodo = await res.json()
+        setTodos([...todos, newTodo])
         setInput('')
     }
 
-    function toggleDone(id) {
-        setTodos(todos.map(t => t.id === id ? { ...t, done: !t.done } : t))
+    async function toggleDone(id) {
+        const res = await fetch(`/api/todos/${id}`, { method: 'PATCH' })
+        const updated = await res.json()
+        setTodos(todos.map(t => t.id === id ? updated : t))
+    }
+
+    async function handleDelete(id) {
+        await fetch(`/api/todos/${id}`, { method: 'DELETE' })
+        setTodos(todos.filter(t => t.id !== id))
     }
 
     return (
         <div className="page">
             <div className="card">
                 <h1>My To-Do List</h1>
-
 
                 {/* Input area */}
                 <div className="input-row">
@@ -47,6 +68,7 @@ export default function App() {
                                 onChange={() => toggleDone(todo.id)}
                             />
                             <span>{todo.text}</span>
+                            <button className="delete-btn" onClick={() => handleDelete(todo.id)}>✕</button>
                         </li>
                     ))}
                 </ul>
