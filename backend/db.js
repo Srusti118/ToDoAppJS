@@ -7,7 +7,10 @@ const { Pool } = pg
 
 // Connection pool — reuses connections efficiently
 const pool = new Pool({
-    connectionString: process.env.DATABASE_URL
+    connectionString: process.env.DATABASE_URL,
+    ssl: process.env.NODE_ENV === 'production'
+        ? { rejectUnauthorized: false }  // required for Render's PostgreSQL
+        : false                          // no SSL needed locally
 })
 
 // Create the todos table if it doesn't exist yet
@@ -23,3 +26,5 @@ const initDB = async () => {
 }
 
 export { pool, initDB }
+
+//pool is set of reusable database connections
