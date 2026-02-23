@@ -1,20 +1,26 @@
 import { useState, useEffect } from 'react'
 import './index.css'
 
+// Shape of a todo item returned from the backend
+interface Todo {
+    id: number
+    text: string
+    done: boolean
+}
+
 // In development: uses proxy (localhost:3001)
 // In production (Vercel): uses the Render backend URL from env variable
 const API = import.meta.env.VITE_API_URL || ''
 
 export default function App() {
-    const [input, setInput] = useState('')
-    const [todos, setTodos] = useState([])
+    const [input, setInput] = useState<string>('')
+    const [todos, setTodos] = useState<Todo[]>([])
 
     // Load todos from backend on mount , only executed on refreshing the page
     useEffect(() => {
         fetch(`${API}/api/todos`)
             .then(r => r.json())
-            .then(setTodos)
-            //.then(data => setTodos(data)) same thing, just shorter
+            .then((data: Todo[]) => setTodos(data))
             .catch(() => alert('Could not reach the server. Is it running?'))
     }, [])
 
@@ -26,20 +32,20 @@ export default function App() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ text }),
         })
-        const newTodo = await res.json()
+        const newTodo: Todo = await res.json()
         setTodos([...todos, newTodo])
         setInput('')
     }
 
     //checks against the already ticked task
-    async function toggleDone(id) {
+    async function toggleDone(id: number) {
         const res = await fetch(`${API}/api/todos/${id}`, { method: 'PATCH' })
-        const updated = await res.json()
+        const updated: Todo = await res.json()
         setTodos(todos.map(t => t.id === id ? updated : t))
     }
 
     //added delete button --> to remove the to do
-    async function handleDelete(id) {
+    async function handleDelete(id: number) {
         await fetch(`${API}/api/todos/${id}`, { method: 'DELETE' })
         setTodos(todos.filter(t => t.id !== id))
     }
