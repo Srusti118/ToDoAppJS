@@ -1,13 +1,7 @@
 import express, { Request, Response } from 'express'
 import cors from 'cors'
-import { pool, initDB } from './db.js'
-
-// Shape of a todo row from the database
-interface Todo {
-    id: number
-    text: string
-    done: boolean
-}
+import { db, initDB } from './db/index.js'
+import { sql } from './db/baseTable.js'
 
 const app = express()
 
@@ -19,8 +13,8 @@ app.use(express.json())
 
 // GET all todos
 app.get('/api/todos', async (_req: Request, res: Response) => {
-    const result = await pool.query<Todo>('SELECT * FROM todos ORDER BY id ASC')
-    res.json(result.rows)
+    const todos = await db.todo.order({ id: 'ASC' })
+    res.json(todos)
 })
 
 // POST — add a new todo
@@ -29,38 +23,31 @@ app.post('/api/todos', async (req: Request, res: Response) => {
     if (!text || !text.trim()) {
         return res.status(400).json({ error: 'text is required' })
     }
-    const result = await pool.query<Todo>(
-        'INSERT INTO todos (text, done) VALUES ($1, false) RETURNING *',
-        [text.trim()]
-    )
-    res.status(201).json(result.rows[0])
+    const todo = await db.todo.create({ text: text.trim() }).selectAll()
+    res.status(201).json(todo)
 })
 
 // PATCH — toggle done
 app.patch('/api/todos/:id', async (req: Request, res: Response) => {
     const id = Number(req.params.id)
-    const result = await pool.query<Todo>(
-        'UPDATE todos SET done = NOT done WHERE id = $1 RETURNING *',
-        [id]
-    )
-    if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' })
-    res.json(result.rows[0])
+    const todo = await (db.todo as any).find(id).update({
+        done: sql`NOT done`.type(t => t.boolean()) as any
+    }).selectAll()
+    if (!todo) return res.status(404).json({ error: 'Not found' })
+    res.json(todo)
 })
 
 // DELETE — remove a todo
 app.delete('/api/todos/:id', async (req: Request, res: Response) => {
     const id = Number(req.params.id)
-    const result = await pool.query<Todo>(
-        'DELETE FROM todos WHERE id = $1 RETURNING *',
-        [id]
-    )
-    if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' })
+    const deletedCount = await (db.todo as any).find(id).delete()
+    if (deletedCount === 0) return res.status(404).json({ error: 'Not found' })
     res.json({ message: 'Deleted' })
 })
 
 const PORT = process.env.PORT || 3001
 
-// Start server only after DB is ready
+// Start server after DB init
 initDB()
     .then(() => {
         app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`))
