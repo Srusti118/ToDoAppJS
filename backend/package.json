@@ -5,13 +5,19 @@
     "scripts": {
         "build": "tsc",
         "start": "node dist/index.js",
-        "dev": "tsx index.ts"
+        "dev": "tsx index.ts",
+        "db": "tsx db/cli.ts",
+        "db:migrate": "node dist/db/cli.js up"
     },
     "dependencies": {
         "cors": "^2.8.5",
         "dotenv": "^17.3.1",
         "express": "^4.18.2",
-        "pg": "^8.18.0"
+        "orchid-orm": "^1.62.4",
+        "orchid-orm-schema-to-zod": "^1.0.54",
+        "pg": "^8.18.0",
+        "rake-db": "^2.29.4",
+        "zod": "^4.3.6"
     },
     "devDependencies": {
         "@types/cors": "^2.8.17",
