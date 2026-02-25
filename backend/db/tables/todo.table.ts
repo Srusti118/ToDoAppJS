@@ -1,4 +1,4 @@
-import { BaseTable } from '../baseTable.js';
+import { BaseTable, sql } from '../baseTable.js';
 
 export class TodoTable extends BaseTable {
     readonly table = 'todos';
@@ -6,5 +6,6 @@ export class TodoTable extends BaseTable {
         id: t.identity().primaryKey(),
         text: t.text(),
         done: t.boolean().default(false),
+        timestamp: t.timestamp().default(sql`now()`),
     }));
 }

@@ -18,4 +18,4 @@ const db = rakeDb({
     import: (path: string) => import(path),
 } as any);
 
-export const { change } = db;
+export const { change } = db
