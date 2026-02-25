@@ -26,12 +26,18 @@ export default function App() {
 
     async function handleSave() {
         const text = input.trim()
-        if (!text) return
         const res = await fetch(`${API}/api/todos`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ text }),
         })
+
+        if (!res.ok) {
+            const errorData = await res.json()
+            alert(errorData.error || 'Failed to save task')
+            return
+        }
+
         const newTodo: Todo = await res.json()
         setTodos([...todos, newTodo])
         setInput('')
