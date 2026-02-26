@@ -18,6 +18,7 @@
         "orchid-orm-schema-to-zod": "^1.0.54",
         "pg": "^8.18.0",
         "rake-db": "^2.29.4",
+        "shared": "*",
         "zod": "^4.3.6"
     },
     "devDependencies": {
