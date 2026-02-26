@@ -1,6 +1,7 @@
 import { rakeDb } from 'rake-db/node-postgres';
 import { BaseTable } from './baseTable.js';
 import { TodoTable } from './tables/todo.table.js';
+import { UserTable } from './tables/user.table.js';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
@@ -20,7 +21,7 @@ const db = rakeDb(
         ...dbOptions,
         baseTable: BaseTable,
         migrationsPath: resolve(__dirname, './migrations'),
-        tables: [TodoTable],
+        tables: [TodoTable, UserTable],
         migrationId: 'timestamp',
         import: (path: string) => import(path),
     } as any

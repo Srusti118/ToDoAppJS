@@ -22,57 +22,136 @@ type FormSchemaType = z.infer<typeof formSchema>
 const API = import.meta.env.VITE_API_URL || ''
 
 export default function App() {
+    const [userId, setUserId] = useState<number | null>(() => {
+        const saved = localStorage.getItem('userId')
+        return saved ? Number(saved) : null
+    })
     const [todos, setTodos] = useState<Todo[]>([])
+    const [isLogin, setIsLogin] = useState(true)
 
     const { register, handleSubmit, reset, formState: { errors } } = useForm<FormSchemaType>({
         resolver: zodResolver(formSchema),
         defaultValues: { text: '' }
     })
 
-    // Load todos from backend on mount , only executed on refreshing the page
-    useEffect(() => {
-        fetch(`${API}/api/todos`)
-            .then(r => r.json())
-            .then((data: Todo[]) => setTodos(data))
-            .catch(() => alert('Could not reach the server. Is it running?'))
-    }, [])
+    const authForm = useForm({
+        defaultValues: { username: '', password: '' }
+    })
 
-    async function onSubmit(data: FormSchemaType) {
-        const { text } = data
-        const res = await fetch(`${API}/api/todos`, {
+    // Load todos from backend
+    useEffect(() => {
+        if (userId) {
+            fetch(`${API}/api/todos`, {
+                headers: { 'x-user-id': userId.toString() }
+            })
+                .then(r => r.json())
+                .then((data: Todo[]) => {
+                    if (Array.isArray(data)) setTodos(data)
+                })
+                .catch(() => alert('Could not reach the server.'))
+        } else {
+            setTodos([])
+        }
+    }, [userId])
+
+    async function onAuthSubmit(data: any) {
+        const path = isLogin ? '/api/login' : '/api/register'
+        const res = await fetch(`${API}${path}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text }),
+            body: JSON.stringify(data)
         })
 
         if (!res.ok) {
-            const errorData = await res.json()
-            alert(errorData.error || 'Failed to save task')
+            alert('Auth failed')
             return
         }
 
-        const newTodo: Todo = await res.json()
+        const user = await res.json()
+        setUserId(user.id)
+        localStorage.setItem('userId', user.id.toString())
+    }
+
+    async function onSubmit(data: FormSchemaType) {
+        if (!userId) return
+        const res = await fetch(`${API}/api/todos`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-user-id': userId.toString()
+            },
+            body: JSON.stringify(data),
+        })
+
+        if (!res.ok) {
+            alert('Failed to save task')
+            return
+        }
+
+        const newTodoRes = await res.json()
+        const newTodo = Array.isArray(newTodoRes) ? newTodoRes[0] : newTodoRes;
+
         setTodos([...todos, newTodo])
         reset()
     }
 
-    //checks against the already ticked task
     async function toggleDone(id: number) {
-        const res = await fetch(`${API}/api/todos/${id}`, { method: 'PATCH' })
-        const updated: Todo = await res.json()
-        setTodos(todos.map(t => t.id === id ? updated : t))
+        if (!userId) return
+
+        // Optimistic UI update (optional, but good for responsiveness):
+        // setTodos(todos.map(t => t.id === id ? { ...t, done: !t.done } : t))
+
+        const res = await fetch(`${API}/api/todos/${id}`, {
+            method: 'PATCH',
+            headers: { 'x-user-id': userId.toString() }
+        })
+        const updated: Todo[] = await res.json()
+
+        // The backend returns an array from .selectAll(), so we take the first item
+        const updatedTodo = Array.isArray(updated) ? updated[0] : updated;
+
+        setTodos(todos.map(t => t.id === id ? { ...t, ...updatedTodo } : t))
     }
 
-    //added delete button --> to remove the to do
     async function handleDelete(id: number) {
-        await fetch(`${API}/api/todos/${id}`, { method: 'DELETE' })
+        if (!userId) return
+        await fetch(`${API}/api/todos/${id}`, {
+            method: 'DELETE',
+            headers: { 'x-user-id': userId.toString() }
+        })
         setTodos(todos.filter(t => t.id !== id))
+    }
+
+    function logout() {
+        setUserId(null)
+        localStorage.removeItem('userId')
+    }
+
+    if (!userId) {
+        return (
+            <div className="page">
+                <div className="card">
+                    <h1>{isLogin ? 'Login' : 'Register'}</h1>
+                    <form className="input-row" style={{ flexDirection: 'column', gap: '10px' }} onSubmit={authForm.handleSubmit(onAuthSubmit)}>
+                        <input type="text" placeholder="Username" {...authForm.register('username')} required />
+                        <input type="password" placeholder="Password" {...authForm.register('password')} required />
+                        <button type="submit">{isLogin ? 'Login' : 'Signup'}</button>
+                    </form>
+                    <p style={{ marginTop: '15px', textAlign: 'center', cursor: 'pointer', color: '#666' }} onClick={() => setIsLogin(!isLogin)}>
+                        {isLogin ? "Need an account? Register" : "Have an account? Login"}
+                    </p>
+                </div>
+            </div>
+        )
     }
 
     return (
         <div className="page">
             <div className="card">
-                <h1>My To-Do List</h1>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <h1>My To-Do List</h1>
+                    <button onClick={logout} style={{ padding: '4px 8px', fontSize: '12px', background: '#eee', color: '#333' }}>Logout</button>
+                </div>
 
                 {/* Input area */}
                 <form
