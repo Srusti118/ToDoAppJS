@@ -1,5 +1,6 @@
 import { orchidORM } from 'orchid-orm/node-postgres';
 import { TodoTable } from './tables/todo.table.js';
+import { UserTable } from './tables/user.table.js';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -11,6 +12,7 @@ export const db = orchidORM(
     },
     {
         todo: TodoTable as any,
+        user: UserTable as any,
     }
 );
 

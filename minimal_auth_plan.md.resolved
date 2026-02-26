@@ -1,0 +1,43 @@
+# Minimalist Auth Implementation Plan
+
+This plan focuses on adding functional authentication with user isolation using the simplest possible approach. No complex routing or heavy dependencies.
+
+## 1. Database & Models (The Ownership)
+We need to define who owns what.
+
+- **Create `server/db/UserTable.ts`**: Store `username` and `password`.
+- **Update [server/db/EntryTable.ts](file:///c:/Users/mrsan/Desktop/JournalApp_/server/db/EntryTable.ts)**: Add `userId` as a foreign key.
+- **Run Migrations**: Sync the database schema to support users.
+
+## 2. API Contract ([shared/contract.ts](file:///c:/Users/mrsan/Desktop/JournalApp_/shared/contract.ts))
+Update the oRPC contract to handle authentication.
+
+- **Auth Routes**: Add `login` and `register` methods.
+- **Journal Routes**: Keep existing routes but they will now implicitly or explicitly require a `userId`.
+
+## 3. Simple Backend Logic ([server/router.ts](file:///c:/Users/mrsan/Desktop/JournalApp_/server/router.ts))
+- **Registration**: Save new users to the DB.
+- **Login**: Check credentials and return the `userId`.
+- **Isolation**: Update `getEntries`, [addEntry](file:///c:/Users/mrsan/Desktop/JournalApp_/my-react-app/src/App.tsx#25-43), [deleteEntry](file:///c:/Users/mrsan/Desktop/JournalApp_/my-react-app/src/App.tsx#44-54), and `updateEntry` to always include `.where({ userId })`.
+- **Minimal Security**: For "too simple" auth, we will send the `userId` in a custom header (e.g., `x-user-id`) from the frontend.
+
+## 4. Single-Page Frontend Logic ([my-react-app/src/App.tsx](file:///c:/Users/mrsan/Desktop/JournalApp_/my-react-app/src/App.tsx))
+Instead of adding a Router, we will use conditional rendering.
+
+- **State Management**: Add a `user` state (stores the logged-in user's ID).
+- **View Toggle**:
+    - `if (!user)`: Show a combined Login/Signup form.
+    - `if (user)`: Show the Journal dashboard and a "Logout" button.
+- **Simple Persistence**: Save `userId` to `localStorage` so the user stays logged in after a page refresh.
+
+## 5. User Isolation Rule
+- **Fetch**: `client.getEntries()` will send the user's ID.
+- **Create**: New entries will automatically be tagged with the sender's `userId`.
+- **Privacy**: The backend will strictly filter all queries by the provided `userId`.
+
+---
+
+### Phase 1: Database Setup
+1. Define `UserTable`.
+2. Link [EntryTable](file:///c:/Users/mrsan/Desktop/JournalApp_/server/db/EntryTable.ts#3-13) to `UserTable`.
+3. Create and run migrations.
