@@ -4,15 +4,12 @@ import { z } from 'zod'
 import { db, initDB } from './db/index.js'
 import { sql } from './db/baseTable.js'
 
+import { RPCHandler } from '@orpc/server/node'
+import { router } from './router.js'
+
 const app = express()
 
-const createTodoSchema = z.object({
-    text: z.string({ message: 'text is required' }).trim().min(1, 'text is required')
-})
-
-const idParamSchema = z.object({
-    id: z.coerce.number().int().positive()
-})
+const rpcHandler = new RPCHandler(router)
 
 app.use(cors({
     origin: process.env.FRONTEND_URL || '*'
@@ -20,47 +17,11 @@ app.use(cors({
 
 app.use(express.json())
 
-// GET all todos
-app.get('/api/todos', async (_req: Request, res: Response) => {
-    const todos = await db.todo.order({ id: 'ASC' })
-    res.json(todos)
-})
-
-// POST — add a new todo
-app.post('/api/todos', async (req: Request, res: Response) => {
-    const parseResult = createTodoSchema.safeParse(req.body);
-    if (!parseResult.success) {
-        return res.status(400).json({ error: parseResult.error.issues[0].message })
+app.all(['/rpc', '/rpc/*'], async (req, res) => {
+    const result = await rpcHandler.handle(req, res, { prefix: '/rpc' })
+    if (!result.matched) {
+        res.status(404).send('No procedure matched')
     }
-    const { text } = parseResult.data;
-    const todo = await db.todo.create({ text }).selectAll()
-    res.status(201).json(todo)
-})
-
-// PATCH — toggle done
-app.patch('/api/todos/:id', async (req: Request, res: Response) => {
-    const parseResult = idParamSchema.safeParse(req.params);
-    if (!parseResult.success) {
-        return res.status(400).json({ error: 'Invalid id parameter' });
-    }
-    const { id } = parseResult.data;
-    const todo = await (db.todo as any).find(id).update({
-        done: sql`NOT done`.type(t => t.boolean()) as any
-    }).selectAll()
-    if (!todo) return res.status(404).json({ error: 'Not found' })
-    res.json(todo)
-})
-
-// DELETE — remove a todo
-app.delete('/api/todos/:id', async (req: Request, res: Response) => {
-    const parseResult = idParamSchema.safeParse(req.params);
-    if (!parseResult.success) {
-        return res.status(400).json({ error: 'Invalid id parameter' });
-    }
-    const { id } = parseResult.data;
-    const deletedCount = await (db.todo as any).find(id).delete()
-    if (deletedCount === 0) return res.status(404).json({ error: 'Not found' })
-    res.json({ message: 'Deleted' })
 })
 
 const PORT = process.env.PORT || 3001

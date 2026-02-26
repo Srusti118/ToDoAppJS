@@ -10,6 +10,7 @@
         "db:migrate": "node dist/db/cli.js up"
     },
     "dependencies": {
+        "@orpc/server": "^1.13.5",
         "cors": "^2.8.5",
         "dotenv": "^17.3.1",
         "express": "^4.18.2",

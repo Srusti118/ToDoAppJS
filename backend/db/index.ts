@@ -10,7 +10,7 @@ export const db = orchidORM(
         ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
     },
     {
-        todo: TodoTable as any,
+        todo: TodoTable,
     }
 );
 

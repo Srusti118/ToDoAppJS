@@ -4,12 +4,9 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import './index.css'
 
-// Shape of a todo item returned from the backend
-interface Todo {
-    id: number
-    text: string
-    done: boolean
-}
+import { orpc } from './lib/orpc'
+
+// Shape of a Todo is now inferred from the AppRouter types
 
 const formSchema = z.object({
     text: z.string().trim().min(1, 'Task cannot be empty')
@@ -17,12 +14,10 @@ const formSchema = z.object({
 
 type FormSchemaType = z.infer<typeof formSchema>
 
-// In development: uses proxy (localhost:3001)
-// In production (Vercel): uses the Render backend URL from env variable
-const API = import.meta.env.VITE_API_URL || ''
+// The orpc client already knows the API URL from its configuration
 
 export default function App() {
-    const [todos, setTodos] = useState<Todo[]>([])
+    const [todos, setTodos] = useState<any[]>([]) // Using any[] temporarily, but it will be typed by orpc result
 
     const { register, handleSubmit, reset, formState: { errors } } = useForm<FormSchemaType>({
         resolver: zodResolver(formSchema),
@@ -31,42 +26,40 @@ export default function App() {
 
     // Load todos from backend on mount , only executed on refreshing the page
     useEffect(() => {
-        fetch(`${API}/api/todos`)
-            .then(r => r.json())
-            .then((data: Todo[]) => setTodos(data))
+        orpc.listTodos()
+            .then((data) => setTodos(data))
             .catch(() => alert('Could not reach the server. Is it running?'))
     }, [])
 
     async function onSubmit(data: FormSchemaType) {
         const { text } = data
-        const res = await fetch(`${API}/api/todos`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text }),
-        })
-
-        if (!res.ok) {
-            const errorData = await res.json()
-            alert(errorData.error || 'Failed to save task')
-            return
+        try {
+            const newTodo = await orpc.createTodo({ text })
+            setTodos([...todos, newTodo])
+            reset()
+        } catch (error: any) {
+            alert(error.message || 'Failed to save task')
         }
-
-        const newTodo: Todo = await res.json()
-        setTodos([...todos, newTodo])
-        reset()
     }
 
     //checks against the already ticked task
     async function toggleDone(id: number) {
-        const res = await fetch(`${API}/api/todos/${id}`, { method: 'PATCH' })
-        const updated: Todo = await res.json()
-        setTodos(todos.map(t => t.id === id ? updated : t))
+        try {
+            const updated = await orpc.toggleTodo({ id })
+            setTodos(todos.map(t => t.id === id ? updated : t))
+        } catch (error: any) {
+            alert(error.message || 'Failed to toggle task')
+        }
     }
 
     //added delete button --> to remove the to do
     async function handleDelete(id: number) {
-        await fetch(`${API}/api/todos/${id}`, { method: 'DELETE' })
-        setTodos(todos.filter(t => t.id !== id))
+        try {
+            await orpc.deleteTodo({ id })
+            setTodos(todos.filter(t => t.id !== id))
+        } catch (error: any) {
+            alert(error.message || 'Failed to delete task')
+        }
     }
 
     return (
