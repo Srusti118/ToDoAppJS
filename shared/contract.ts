@@ -7,7 +7,7 @@ export const TodoSchema = z.object({
     done: z.boolean(),
 })
 
-export const router = {
+export const router = os.router({
     listTodos: os
         .output(z.array(TodoSchema))
         .handler(async () => {
@@ -38,4 +38,4 @@ export const router = {
             // Logic handled in router.ts implementation
             return { message: 'Deleted' }
         }),
-}
+})
