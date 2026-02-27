@@ -10,6 +10,12 @@
         "db:migrate": "node dist/db/initSchema.js && node dist/db/cli.js up"
     },
     "dependencies": {
+        "@types/cookie-parser": "^1.4.10",
+        "@types/cors": "^2.8.17",
+        "@types/express": "^4.17.21",
+        "@types/jsonwebtoken": "^9.0.10",
+        "@types/node": "^22.13.4",
+        "@types/pg": "^8.11.6",
         "cookie-parser": "^1.4.7",
         "cors": "^2.8.5",
         "dotenv": "^17.3.1",
@@ -23,12 +29,6 @@
         "zod": "^4.3.6"
     },
     "devDependencies": {
-        "@types/cookie-parser": "^1.4.10",
-        "@types/cors": "^2.8.17",
-        "@types/express": "^4.17.21",
-        "@types/jsonwebtoken": "^9.0.10",
-        "@types/node": "^22.13.4",
-        "@types/pg": "^8.11.6",
         "tsx": "^4.19.2",
         "typescript": "^5.8.2"
     }
