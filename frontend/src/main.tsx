@@ -3,6 +3,10 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
 
+import { GoogleOAuthProvider } from '@react-oauth/google'
+
+const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
+
 // ─────────────────────────────────────────────────────────────────────────────
 // document.getElementById('root') can return HTMLElement | null
 // TypeScript knows this and will warn: "you can't pass null to createRoot"
@@ -14,6 +18,8 @@ import App from './App.tsx'
 createRoot(document.getElementById('root') as HTMLElement).render(
     <StrictMode>
         {/* StrictMode runs extra checks in development to catch bad patterns early */}
-        <App />
+        <GoogleOAuthProvider clientId={clientId}>
+            <App />
+        </GoogleOAuthProvider>
     </StrictMode>,
 )
