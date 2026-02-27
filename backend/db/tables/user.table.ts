@@ -5,6 +5,8 @@ export class UserTable extends BaseTable {
     columns = this.setColumns((t) => ({
         id: t.identity().primaryKey(),
         username: t.text().unique(),
-        password: t.text(),
+        password: t.text().nullable(),
+        googleId: t.text().nullable(),
+        email: t.text().nullable(),
     }));
 }

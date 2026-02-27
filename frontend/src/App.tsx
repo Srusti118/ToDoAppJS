@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { GoogleLogin } from '@react-oauth/google'
+import axios from 'axios'
 import './index.css'
 
 // Shape of a todo item returned from the backend
@@ -22,12 +24,15 @@ type FormSchemaType = z.infer<typeof formSchema>
 const API = import.meta.env.VITE_API_URL || ''
 
 export default function App() {
-    const [userId, setUserId] = useState<number | null>(() => {
-        const saved = localStorage.getItem('userId')
-        return saved ? Number(saved) : null
-    })
+    const [userId, setUserId] = useState<number | null>(null)
     const [todos, setTodos] = useState<Todo[]>([])
     const [isLogin, setIsLogin] = useState(true)
+
+    // Setup axios instance for cookie handling
+    const api = axios.create({
+        baseURL: API,
+        withCredentials: true
+    })
 
     const { register, handleSubmit, reset, formState: { errors } } = useForm<FormSchemaType>({
         resolver: zodResolver(formSchema),
@@ -38,15 +43,19 @@ export default function App() {
         defaultValues: { username: '', password: '' }
     })
 
+    // Check if user is logged in natively via auth_token on load
+    useEffect(() => {
+        api.get('/api/auth/me')
+            .then(res => setUserId(res.data.id))
+            .catch(() => setUserId(null))
+    }, [])
+
     // Load todos from backend
     useEffect(() => {
         if (userId) {
-            fetch(`${API}/api/todos`, {
-                headers: { 'x-user-id': userId.toString() }
-            })
-                .then(r => r.json())
-                .then((data: Todo[]) => {
-                    if (Array.isArray(data)) setTodos(data)
+            api.get('/api/todos')
+                .then(res => {
+                    if (Array.isArray(res.data)) setTodos(res.data)
                 })
                 .catch(() => alert('Could not reach the server.'))
         } else {
@@ -56,75 +65,65 @@ export default function App() {
 
     async function onAuthSubmit(data: any) {
         const path = isLogin ? '/api/login' : '/api/register'
-        const res = await fetch(`${API}${path}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        })
-
-        if (!res.ok) {
+        try {
+            const res = await api.post(path, data)
+            setUserId(res.data.id)
+        } catch (err) {
             alert('Auth failed')
-            return
         }
+    }
 
-        const user = await res.json()
-        setUserId(user.id)
-        localStorage.setItem('userId', user.id.toString())
+    async function handleGoogleSuccess(credentialResponse: any) {
+        try {
+            const res = await api.post('/api/auth/google', {
+                credential: credentialResponse.credential
+            })
+            setUserId(res.data.id)
+        } catch (err) {
+            alert('Google Login Failed')
+        }
     }
 
     async function onSubmit(data: FormSchemaType) {
         if (!userId) return
-        const res = await fetch(`${API}/api/todos`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'x-user-id': userId.toString()
-            },
-            body: JSON.stringify(data),
-        })
-
-        if (!res.ok) {
+        try {
+            const res = await api.post('/api/todos', data)
+            const newTodo = Array.isArray(res.data) ? res.data[0] : res.data;
+            setTodos([...todos, newTodo])
+            reset()
+        } catch (err) {
             alert('Failed to save task')
-            return
         }
-
-        const newTodoRes = await res.json()
-        const newTodo = Array.isArray(newTodoRes) ? newTodoRes[0] : newTodoRes;
-
-        setTodos([...todos, newTodo])
-        reset()
     }
 
     async function toggleDone(id: number) {
         if (!userId) return
 
-        // Optimistic UI update (optional, but good for responsiveness):
-        // setTodos(todos.map(t => t.id === id ? { ...t, done: !t.done } : t))
-
-        const res = await fetch(`${API}/api/todos/${id}`, {
-            method: 'PATCH',
-            headers: { 'x-user-id': userId.toString() }
-        })
-        const updated: Todo[] = await res.json()
-
-        // The backend returns an array from .selectAll(), so we take the first item
-        const updatedTodo = Array.isArray(updated) ? updated[0] : updated;
-
-        setTodos(todos.map(t => t.id === id ? { ...t, ...updatedTodo } : t))
+        try {
+            const res = await api.patch(`/api/todos/${id}`)
+            const updatedTodo = Array.isArray(res.data) ? res.data[0] : res.data;
+            setTodos(todos.map(t => t.id === id ? { ...t, ...updatedTodo } : t))
+        } catch (e) {
+            alert('Failed to update task')
+        }
     }
 
     async function handleDelete(id: number) {
         if (!userId) return
-        await fetch(`${API}/api/todos/${id}`, {
-            method: 'DELETE',
-            headers: { 'x-user-id': userId.toString() }
-        })
-        setTodos(todos.filter(t => t.id !== id))
+        try {
+            await api.delete(`/api/todos/${id}`)
+            setTodos(todos.filter(t => t.id !== id))
+        } catch (e) {
+            console.error('Failed to delete task')
+        }
     }
 
-    function logout() {
-        setUserId(null)
-        localStorage.removeItem('userId')
+    async function logout() {
+        try {
+            await api.post('/api/auth/logout')
+        } finally {
+            setUserId(null)
+        }
     }
 
     if (!userId) {
@@ -137,6 +136,15 @@ export default function App() {
                         <input type="password" placeholder="Password" {...authForm.register('password')} required />
                         <button type="submit">{isLogin ? 'Login' : 'Signup'}</button>
                     </form>
+
+                    <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'center' }}>
+                        <GoogleLogin
+                            onSuccess={handleGoogleSuccess}
+                            onError={() => alert("Google Login Failed")}
+                            useOneTap
+                        />
+                    </div>
+
                     <p style={{ marginTop: '15px', textAlign: 'center', cursor: 'pointer', color: '#666' }} onClick={() => setIsLogin(!isLogin)}>
                         {isLogin ? "Need an account? Register" : "Have an account? Login"}
                     </p>
