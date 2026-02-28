@@ -1,4 +1,6 @@
+import './src/telemetry.js';
 import express, { Request, Response } from 'express'
+import * as Sentry from '@sentry/node';
 import cors from 'cors'
 import { z } from 'zod'
 import { db, initDB } from './db/index.js'
@@ -196,6 +198,13 @@ app.delete('/api/todos/:id', authenticateUser, async (req: Request, res: Respons
     if (deletedCount === 0) return res.status(404).json({ error: 'Not found' })
     res.json({ message: 'Deleted' })
 })
+
+app.get("/api/debug-sentry", function mainHandler(req, res) {
+    throw new Error("My first Sentry error in Node.js!");
+});
+
+// Sentry Error Handler (must be after all controllers)
+Sentry.setupExpressErrorHandler(app);
 
 const PORT = process.env.PORT || 3001
 

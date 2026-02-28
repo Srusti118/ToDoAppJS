@@ -27,6 +27,11 @@ export default function App() {
     const [userId, setUserId] = useState<number | null>(null)
     const [todos, setTodos] = useState<Todo[]>([])
     const [isLogin, setIsLogin] = useState(true)
+    const [crashReact, setCrashReact] = useState(false)
+
+    if (crashReact) {
+        throw new Error("Sentry Frontend Error Test!");
+    }
 
     // Setup axios instance for cookie handling
     const api = axios.create({
@@ -158,7 +163,10 @@ export default function App() {
             <div className="card">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <h1>My To-Do List</h1>
-                    <button onClick={logout} style={{ padding: '4px 8px', fontSize: '12px', background: '#eee', color: '#333' }}>Logout</button>
+                    <div>
+                        <button onClick={() => setCrashReact(true)} style={{ padding: '4px 8px', fontSize: '12px', background: '#e53935', color: 'white', marginRight: '8px' }}>Test Error</button>
+                        <button onClick={logout} style={{ padding: '4px 8px', fontSize: '12px', background: '#eee', color: '#333' }}>Logout</button>
+                    </div>
                 </div>
 
                 {/* Input area */}
