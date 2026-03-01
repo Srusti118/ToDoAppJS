@@ -19,6 +19,13 @@ const formSchema = z.object({
 
 type FormSchemaType = z.infer<typeof formSchema>
 
+const authSchema = z.object({
+    username: z.string().trim().min(3, 'Username must be at least 3 characters'),
+    password: z.string().min(6, 'Password must be at least 6 characters')
+})
+
+type AuthSchemaType = z.infer<typeof authSchema>
+
 // In development: uses proxy (localhost:3001)
 // In production (Vercel): uses the Render backend URL from env variable
 const API = import.meta.env.VITE_API_URL || ''
@@ -39,12 +46,13 @@ export default function App() {
         withCredentials: true
     })
 
-    const { register, handleSubmit, reset, formState: { errors } } = useForm<FormSchemaType>({
+    const { register, handleSubmit, reset, formState: { errors, isSubmitting: isTodoSubmitting } } = useForm<FormSchemaType>({
         resolver: zodResolver(formSchema),
         defaultValues: { text: '' }
     })
 
-    const authForm = useForm({
+    const authForm = useForm<AuthSchemaType>({
+        resolver: zodResolver(authSchema),
         defaultValues: { username: '', password: '' }
     })
 
@@ -68,7 +76,7 @@ export default function App() {
         }
     }, [userId])
 
-    async function onAuthSubmit(data: any) {
+    async function onAuthSubmit(data: AuthSchemaType) {
         const path = isLogin ? '/api/login' : '/api/register'
         try {
             const res = await api.post(path, data)
@@ -137,9 +145,25 @@ export default function App() {
                 <div className="card">
                     <h1>{isLogin ? 'Login' : 'Register'}</h1>
                     <form className="input-row" style={{ flexDirection: 'column', gap: '10px' }} onSubmit={authForm.handleSubmit(onAuthSubmit)}>
-                        <input type="text" placeholder="Username" {...authForm.register('username')} required />
-                        <input type="password" placeholder="Password" {...authForm.register('password')} required />
-                        <button type="submit">{isLogin ? 'Login' : 'Signup'}</button>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: '100%', alignItems: 'flex-start' }}>
+                            <input type="text" placeholder="Username" {...authForm.register('username')} style={{ width: '100%' }} />
+                            {authForm.formState.errors.username && (
+                                <span style={{ color: '#d32f2f', fontSize: '13px', marginLeft: '2px' }}>
+                                    {authForm.formState.errors.username.message}
+                                </span>
+                            )}
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: '100%', alignItems: 'flex-start' }}>
+                            <input type="password" placeholder="Password" {...authForm.register('password')} style={{ width: '100%' }} />
+                            {authForm.formState.errors.password && (
+                                <span style={{ color: '#d32f2f', fontSize: '13px', marginLeft: '2px' }}>
+                                    {authForm.formState.errors.password.message}
+                                </span>
+                            )}
+                        </div>
+                        <button type="submit" disabled={authForm.formState.isSubmitting}>
+                            {authForm.formState.isSubmitting ? 'Please wait...' : (isLogin ? 'Login' : 'Signup')}
+                        </button>
                     </form>
 
                     <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'center' }}>
@@ -181,7 +205,9 @@ export default function App() {
                             placeholder="Enter a task..."
                             {...register('text')}
                         />
-                        <button type="submit">Save</button>
+                        <button type="submit" disabled={isTodoSubmitting}>
+                            {isTodoSubmitting ? '...' : 'Save'}
+                        </button>
                     </div>
                     {errors.text && (
                         <span style={{ color: '#d32f2f', fontSize: '13px', marginTop: '6px', marginLeft: '2px' }}>
