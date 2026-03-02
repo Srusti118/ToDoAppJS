@@ -35,6 +35,8 @@ export default function App() {
     const [todos, setTodos] = useState<Todo[]>([])
     const [isLogin, setIsLogin] = useState(true)
     const [crashReact, setCrashReact] = useState(false)
+    const [isAuthLoading, setIsAuthLoading] = useState(true)
+    const [globalError, setGlobalError] = useState<string | null>(null)
 
     if (crashReact) {
         throw new Error("Sentry Frontend Error Test!");
@@ -58,9 +60,11 @@ export default function App() {
 
     // Check if user is logged in natively via auth_token on load
     useEffect(() => {
+        setIsAuthLoading(true)
         api.get('/api/auth/me')
             .then(res => setUserId(res.data.id))
             .catch(() => setUserId(null))
+            .finally(() => setIsAuthLoading(false))
     }, [])
 
     // Load todos from backend
@@ -69,65 +73,73 @@ export default function App() {
             api.get('/api/todos')
                 .then(res => {
                     if (Array.isArray(res.data)) setTodos(res.data)
+                    setGlobalError(null)
                 })
-                .catch(() => alert('Could not reach the server.'))
+                .catch((err) => {
+                    console.error(err)
+                    setGlobalError('Could not reach the server.')
+                })
         } else {
             setTodos([])
         }
     }, [userId])
 
     async function onAuthSubmit(data: AuthSchemaType) {
+        setGlobalError(null)
         const path = isLogin ? '/api/login' : '/api/register'
         try {
             const res = await api.post(path, data)
             setUserId(res.data.id)
-        } catch (err) {
-            alert('Auth failed')
+        } catch (err: any) {
+            setGlobalError(err.response?.data?.error || 'Auth failed. Please check your credentials or connection.')
         }
     }
 
     async function handleGoogleSuccess(credentialResponse: any) {
+        setGlobalError(null)
         try {
             const res = await api.post('/api/auth/google', {
                 credential: credentialResponse.credential
             })
             setUserId(res.data.id)
-        } catch (err) {
-            alert('Google Login Failed')
+        } catch (err: any) {
+            setGlobalError(err.response?.data?.error || 'Google Login Failed')
         }
     }
 
     async function onSubmit(data: FormSchemaType) {
         if (!userId) return
+        setGlobalError(null)
         try {
             const res = await api.post('/api/todos', data)
             const newTodo = Array.isArray(res.data) ? res.data[0] : res.data;
             setTodos([...todos, newTodo])
             reset()
         } catch (err) {
-            alert('Failed to save task')
+            setGlobalError('Failed to save task')
         }
     }
 
     async function toggleDone(id: number) {
         if (!userId) return
-
+        setGlobalError(null)
         try {
             const res = await api.patch(`/api/todos/${id}`)
             const updatedTodo = Array.isArray(res.data) ? res.data[0] : res.data;
             setTodos(todos.map(t => t.id === id ? { ...t, ...updatedTodo } : t))
         } catch (e) {
-            alert('Failed to update task')
+            setGlobalError('Failed to update task')
         }
     }
 
     async function handleDelete(id: number) {
         if (!userId) return
+        setGlobalError(null)
         try {
             await api.delete(`/api/todos/${id}`)
             setTodos(todos.filter(t => t.id !== id))
         } catch (e) {
-            console.error('Failed to delete task')
+            setGlobalError('Failed to delete task')
         }
     }
 
@@ -139,11 +151,26 @@ export default function App() {
         }
     }
 
+    if (isAuthLoading) {
+        return (
+            <div className="page" style={{ display: 'flex', justifyContent: 'center' }}>
+                <p style={{ color: '#666' }}>Loading...</p>
+            </div>
+        )
+    }
+
     if (!userId) {
         return (
             <div className="page">
                 <div className="card">
                     <h1>{isLogin ? 'Login' : 'Register'}</h1>
+
+                    {globalError && (
+                        <div style={{ background: '#ffebee', color: '#c62828', padding: '10px', borderRadius: '4px', marginBottom: '16px', fontSize: '14px' }}>
+                            {globalError}
+                        </div>
+                    )}
+
                     <form className="input-row" style={{ flexDirection: 'column', gap: '10px' }} onSubmit={authForm.handleSubmit(onAuthSubmit)}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: '100%', alignItems: 'flex-start' }}>
                             <input type="text" placeholder="Username" {...authForm.register('username')} style={{ width: '100%' }} />
@@ -169,7 +196,7 @@ export default function App() {
                     <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'center' }}>
                         <GoogleLogin
                             onSuccess={handleGoogleSuccess}
-                            onError={() => alert("Google Login Failed")}
+                            onError={() => setGlobalError("Google Login Failed")}
                             useOneTap
                         />
                     </div>
@@ -192,6 +219,12 @@ export default function App() {
                         <button onClick={logout} style={{ padding: '4px 8px', fontSize: '12px', background: '#eee', color: '#333' }}>Logout</button>
                     </div>
                 </div>
+
+                {globalError && (
+                    <div style={{ background: '#ffebee', color: '#c62828', padding: '10px', borderRadius: '4px', marginBottom: '16px', fontSize: '14px' }}>
+                        {globalError}
+                    </div>
+                )}
 
                 {/* Input area */}
                 <form
