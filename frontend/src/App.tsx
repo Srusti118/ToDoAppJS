@@ -34,13 +34,8 @@ export default function App() {
     const [userId, setUserId] = useState<number | null>(null)
     const [todos, setTodos] = useState<Todo[]>([])
     const [isLogin, setIsLogin] = useState(true)
-    const [crashReact, setCrashReact] = useState(false)
     const [isAuthLoading, setIsAuthLoading] = useState(true)
     const [globalError, setGlobalError] = useState<string | null>(null)
-
-    if (crashReact) {
-        throw new Error("Sentry Frontend Error Test!");
-    }
 
     // Setup axios instance for cookie handling
     const api = axios.create({
@@ -115,8 +110,9 @@ export default function App() {
             const newTodo = Array.isArray(res.data) ? res.data[0] : res.data;
             setTodos([...todos, newTodo])
             reset()
-        } catch (err) {
-            setGlobalError('Failed to save task')
+        } catch (err: any) {
+            console.error('Task save error:', err)
+            setGlobalError(err.response?.data?.error || 'Failed to save task')
         }
     }
 
@@ -127,8 +123,9 @@ export default function App() {
             const res = await api.patch(`/api/todos/${id}`)
             const updatedTodo = Array.isArray(res.data) ? res.data[0] : res.data;
             setTodos(todos.map(t => t.id === id ? { ...t, ...updatedTodo } : t))
-        } catch (e) {
-            setGlobalError('Failed to update task')
+        } catch (err: any) {
+            console.error('Task update error:', err)
+            setGlobalError(err.response?.data?.error || 'Failed to update task')
         }
     }
 
@@ -138,8 +135,9 @@ export default function App() {
         try {
             await api.delete(`/api/todos/${id}`)
             setTodos(todos.filter(t => t.id !== id))
-        } catch (e) {
-            setGlobalError('Failed to delete task')
+        } catch (err: any) {
+            console.error('Task delete error:', err)
+            setGlobalError(err.response?.data?.error || 'Failed to delete task')
         }
     }
 
@@ -215,7 +213,6 @@ export default function App() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <h1>My To-Do List</h1>
                     <div>
-                        <button onClick={() => setCrashReact(true)} style={{ padding: '4px 8px', fontSize: '12px', background: '#e53935', color: 'white', marginRight: '8px' }}>Test Error</button>
                         <button onClick={logout} style={{ padding: '4px 8px', fontSize: '12px', background: '#eee', color: '#333' }}>Logout</button>
                     </div>
                 </div>
@@ -231,11 +228,15 @@ export default function App() {
                     className="input-row"
                     onSubmit={handleSubmit(onSubmit)}
                     style={{ flexDirection: 'column', gap: 0 }}
+                    autoComplete="off"
                 >
                     <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
                         <input
                             type="text"
                             placeholder="Enter a task..."
+                            autoComplete="off"
+                            data-lpignore="true"
+                            data-1p-ignore="true"
                             {...register('text')}
                         />
                         <button type="submit" disabled={isTodoSubmitting}>
