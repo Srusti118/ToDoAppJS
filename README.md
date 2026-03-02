@@ -9,6 +9,7 @@ A production-ready, full-stack ToDo application built with a modern React fronte
 - **Form Management:** Fast and performant forms built with React Hook Form.
 - **Deep Observability:** Fully instrumented with OpenTelemetry for distributed tracing and Sentry for error tracking across the stack.
 - **Type Safety:** TypeScript utilized across both the frontend and backend to guarantee type integrity.
+- **PWA Ready:** Installable as a Progressive Web Application offering an app-like experience and asset caching.
 - **Modern Data Access:** Database interactions handled by Orchid ORM for a developer-friendly, type-safe query building experience.
 
 ---
@@ -28,6 +29,7 @@ A production-ready, full-stack ToDo application built with a modern React fronte
 - **Validation:** Zod, `@hookform/resolvers`
 - **Network:** Axios
 - **Auth:** `@react-oauth/google`
+- **PWA:** `vite-plugin-pwa`
 - **Observability:** `@sentry/react`, OpenTelemetry (`@opentelemetry/sdk-trace-web`)
 
 ### Backend
