@@ -1,0 +1,103 @@
+# System Architecture & Flows
+
+This document outlines the core architecture and data flows of the ToDo application. These diagrams are designed to help new contributors and reviewers quickly understand the system's interactions.
+
+## 1. Authentication Flow (Google OAuth & JWT)
+The application leverages Google OAuth for identity verification and issues its own JWTs stored in HTTP-only cookies for session management.
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant React UI
+    participant Express Backend
+    participant Postgres DB
+    participant Google OAuth
+
+    User->>React UI: Clicks "Sign in with Google"
+    React UI->>Google OAuth: Requests credential
+    Google OAuth-->>React UI: Returns Google ID Token
+    React UI->>Express Backend: POST /api/auth/google (Credential)
+     एक्सप्रेस Backend->>Google OAuth: Verifies Token & Audience
+    Google OAuth-->>Express Backend: Valid & Returns Payload (Email, GoogleId)
+    
+    alt User Exists?
+        Express Backend->>Postgres DB: Queries User by Email/GoogleId
+        Postgres DB-->>Express Backend: Returns User Record
+    else User is New
+        Express Backend->>Postgres DB: Creates New User Record
+        Postgres DB-->>Express Backend: Returns New User Record
+    end
+
+    Express Backend->>Express Backend: Generates JWT with User ID
+    Express Backend-->>React UI: Sets HTTP-Only Cookie + Returns User Data
+    React UI->>User: Redirects to Dashboard
+```
+
+## 2. End-to-End Data Flow (Creating a Task)
+This diagram illustrates how data flows from the client to the database when a user performs a standard action, such as creating a new ToDo.
+
+```mermaid
+flowchart TD
+    %% Frontend
+    subgraph Frontend [React Application]
+        UI[User Interface]
+        RHF[React Hook Form]
+        Axios[Axios HTTP Client]
+    end
+
+    %% Backend
+    subgraph Backend [Node/Express Server]
+        Router[Express Router]
+        AuthMid[Auth Middleware]
+        Zod[Zod Validator]
+        Controller[Route Handler]
+    end
+
+    %% Database
+    subgraph Database Layer
+        ORM[Orchid ORM]
+        DB[(PostgreSQL)]
+    end
+
+    UI -->|Submits Form| RHF
+    RHF -->|Validates Input| Axios
+    Axios -->|POST /api/todos| Router
+    
+    Router --> AuthMid
+    AuthMid -->|Validates JWT Cookie| Zod
+    Zod -->|Ensures Schema Correctness| Controller
+    Controller --> ORM
+    
+    ORM -->|Executes SQL| DB
+    DB -->|Returns Created Row| ORM
+    ORM -->|Returns Typed Object| Controller
+    Controller -->|201 CREATED| Axios
+    Axios --> UI
+```
+
+## 3. Database Schema
+The database is managed via Orchid ORM. The relational structure is straightforward, focusing on Users and their associated ToDos.
+
+```mermaid
+erDiagram
+    USER ||--o{ TODO : "owns"
+    
+    USER {
+        int id PK
+        string email "Unique"
+        string username "Unique"
+        string googleId "Optional, Unique"
+        string password "Hashed, Optional"
+        timestamp createdAt
+        timestamp updatedAt
+    }
+    
+    TODO {
+        int id PK
+        int userId FK
+        string text
+        boolean done "Default: false"
+        timestamp createdAt
+        timestamp updatedAt
+    }
+```
