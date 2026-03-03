@@ -25,12 +25,19 @@ app.use(cors({
         if (!origin) return callback(null, true);
 
         const normalizedOrigin = origin.replace(/\/$/, '');
+
+        // 1. Exact match with configured FRONTEND_URL
         if (normalizedOrigin === allowedOrigin) {
-            callback(null, true);
-        } else {
-            console.warn(`⚠️ CORS Blocked: Origin [${origin}] does not match allowed [${allowedOrigin}]`);
-            callback(new Error('Not allowed by CORS'));
+            return callback(null, true);
         }
+
+        // 2. Allow any preview URL from this specific project
+        if (normalizedOrigin.startsWith('https://to-do-app-js') && normalizedOrigin.endsWith('.vercel.app')) {
+            return callback(null, true);
+        }
+
+        console.warn(`⚠️ CORS Blocked: Origin [${origin}] does not match allowed [${allowedOrigin}]`);
+        callback(new Error('Not allowed by CORS'));
     },
     credentials: true,
 }))
