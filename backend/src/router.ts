@@ -172,7 +172,7 @@ const todosRouter = pub.router({
         .handler(async ({ context }) => {
             const userId = context.userId;
             const todos = await db.todo.where({ userId }).order({ id: 'ASC' })
-            return todos as any
+            return todos as z.infer<typeof todoOutputSchema>[]
         }),
 
     create: protectedRoute
@@ -182,7 +182,8 @@ const todosRouter = pub.router({
             const userId = context.userId!;
             const { text } = input;
             const todo = await db.todo.create({ text, userId }).selectAll()
-            return todo as any
+            const result = Array.isArray(todo) ? todo[0] : todo
+            return result as z.infer<typeof todoOutputSchema>
         }),
 
     toggle: protectedRoute
@@ -195,12 +196,13 @@ const todosRouter = pub.router({
                 done: sql`NOT done`.type(t => t.boolean()) as any
             }).selectAll()
             if (!todo) throw new ORPCError('NOT_FOUND', { message: 'Not found' })
-            return Array.isArray(todo) ? todo[0] as any : todo as any
+            const result = Array.isArray(todo) ? todo[0] : todo
+            return result as z.infer<typeof todoOutputSchema>
         }),
 
     delete: protectedRoute
         .input(idParamSchema)
-        .handler(async ({ input, context }) => {
+        .handler(async ({ input, context }: { input: { id: number }, context: ORPCContext }) => {
             const userId = context.userId!;
             const { id } = input;
             const deletedCount = await (db.todo as any).where({ id, userId }).delete()
