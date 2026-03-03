@@ -9,8 +9,7 @@
         "outDir": "dist"
     },
     "include": [
-        "**/*.ts",
-        "../frontend/src/shared/**/*.ts"
+        "**/*.ts"
     ],
     "exclude": [
         "node_modules",
