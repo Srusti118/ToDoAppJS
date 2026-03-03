@@ -17,8 +17,17 @@ const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
 import { RPCHandler } from '@orpc/server/node'
 import { appRouter } from './src/router.js'
 
+let allowedOrigin = process.env.FRONTEND_URL || 'http://localhost:5173';
+allowedOrigin = allowedOrigin.replace(/\/$/, '');
 app.use(cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+    origin: (origin, callback) => {
+        if (!origin || origin === allowedOrigin) {
+            callback(null, true);
+        } else {
+            console.warn(`⚠️ CORS blocked request from origin: ${origin}. Expected: ${allowedOrigin}`);
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
     credentials: true,
 }))
 
