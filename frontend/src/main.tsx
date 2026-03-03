@@ -16,11 +16,17 @@ const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 //   "Trust me, I know this element exists in index.html, it's not null"
 // This is safe because index.html always has <div id="root"></div>
 // ─────────────────────────────────────────────────────────────────────────────
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+
+const queryClient = new QueryClient()
+
 createRoot(document.getElementById('root') as HTMLElement).render(
     <StrictMode>
         {/* StrictMode runs extra checks in development to catch bad patterns early */}
-        <GoogleOAuthProvider clientId={clientId}>
-            <App />
-        </GoogleOAuthProvider>
+        <QueryClientProvider client={queryClient}>
+            <GoogleOAuthProvider clientId={clientId}>
+                <App />
+            </GoogleOAuthProvider>
+        </QueryClientProvider>
     </StrictMode>,
 )
