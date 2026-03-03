@@ -7,7 +7,9 @@ import {
     authSchema,
     createTodoSchema,
     idParamSchema,
-    googleAuthSchema
+    googleAuthSchema,
+    authContract,
+    todosContract
 } from './contract.js'
 import { z } from 'zod'
 
@@ -164,7 +166,7 @@ export const appRouter = os.router({
                 const userId = context.userId!;
                 const { id } = input;
                 const todo = await (db.todo as any).where({ id, userId }).update({
-                    done: sql`NOT done`.type(t => t.boolean()) as any
+                    done: (sql as any)`NOT "done"`.type((t: any) => t.boolean()) as any
                 }).selectAll()
                 if (!todo) throw new ORPCError('NOT_FOUND', { message: 'Not found' })
                 const result = Array.isArray(todo) ? todo[0] : todo

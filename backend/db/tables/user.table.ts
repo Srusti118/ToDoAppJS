@@ -2,7 +2,7 @@ import { BaseTable } from '../baseTable.js';
 
 export class UserTable extends BaseTable {
     readonly table = 'users';
-    columns = (this as any).setColumns((t: any) => ({
+    columns = this.setColumns((t) => ({
         id: t.identity().primaryKey(),
         username: t.text().unique(),
         password: t.text().nullable(),
