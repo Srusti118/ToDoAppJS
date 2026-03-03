@@ -32,21 +32,21 @@ export default function App() {
 
     const queryClient = useQueryClient()
 
-    const { data: user, isLoading: isAuthLoading } = useQuery({
+    const { data: user, isLoading: isAuthLoading } = useQuery<any>({
         ...orpc.auth.me.queryOptions(),
         retry: false,
         staleTime: Infinity
     })
 
-    const userId = user?.id
+    const userId = (user as any)?.id
 
-    const { data: todos = [] } = useQuery({
+    const { data: todos = [] } = useQuery<any[]>({
         ...orpc.todos.list.queryOptions(),
         enabled: !!userId,
         staleTime: 1000 * 60 * 5 // 5 mins
     })
 
-    const loginMut = useMutation({
+    const loginMut = useMutation<any, any, any>({
         ...orpc.auth.login.mutationOptions(),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: orpc.auth.me.key() })
@@ -55,7 +55,7 @@ export default function App() {
         onError: (err: any) => setGlobalError(err.message || 'Login failed')
     })
 
-    const registerMut = useMutation({
+    const registerMut = useMutation<any, any, any>({
         ...orpc.auth.register.mutationOptions(),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: orpc.auth.me.key() })
@@ -64,7 +64,7 @@ export default function App() {
         onError: (err: any) => setGlobalError(err.message || 'Registration failed')
     })
 
-    const googleMut = useMutation({
+    const googleMut = useMutation<any, any, any>({
         ...orpc.auth.google.mutationOptions(),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: orpc.auth.me.key() })
@@ -73,7 +73,7 @@ export default function App() {
         onError: (err: any) => setGlobalError(err.message || 'Google Login Failed')
     })
 
-    const logoutMut = useMutation({
+    const logoutMut = useMutation<any, any, any>({
         ...orpc.auth.logout.mutationOptions(),
         onSuccess: () => {
             queryClient.resetQueries({ queryKey: orpc.auth.me.key() })
@@ -81,19 +81,19 @@ export default function App() {
         }
     })
 
-    const createTodoMut = useMutation({
+    const createTodoMut = useMutation<any, any, any>({
         ...orpc.todos.create.mutationOptions(),
         onSuccess: () => queryClient.invalidateQueries({ queryKey: orpc.todos.list.key() }),
         onError: (err: any) => setGlobalError(err.message || 'Failed to save task')
     })
 
-    const toggleMut = useMutation({
+    const toggleMut = useMutation<any, any, any>({
         ...orpc.todos.toggle.mutationOptions(),
         onSuccess: () => queryClient.invalidateQueries({ queryKey: orpc.todos.list.key() }),
         onError: (err: any) => setGlobalError(err.message || 'Failed to update task')
     })
 
-    const deleteMut = useMutation({
+    const deleteMut = useMutation<any, any, any>({
         ...orpc.todos.delete.mutationOptions(),
         onSuccess: () => queryClient.invalidateQueries({ queryKey: orpc.todos.list.key() }),
         onError: (err: any) => setGlobalError(err.message || 'Failed to delete task')
