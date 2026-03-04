@@ -1,14 +1,22 @@
 # System Architecture & Flows
 
-This document outlines the core architecture and data flows of the ToDo application. These diagrams are designed to help new contributors and reviewers quickly understand the system's interactions.
+This document outlines the core architecture and data flows of the ToDo application, highlighting our **Contract-First** approach using **oRPC** and **TanStack React Query**.
 
-## 1. Authentication Flow (Google OAuth & JWT)
-The application leverages Google OAuth for identity verification and issues its own JWTs stored in HTTP-only cookies for session management.
+## 1. Contract-First Architecture
+The foundation of the application is the **Shared Contract**. Instead of defining separate types for frontend and backend, we define a single source of truth.
+
+- **The Contract (`contract.ts`):** Defines all procedures (API calls), their inputs (validated by Zod), and their outputs.
+- **The Router (`router.ts`):** The backend implements these procedures. TypeScript ensures the implementation matches the contract.
+- **The Client (`orpc.ts`):** The frontend generates a typed client from the contract. No manual fetching or type casting is required.
+
+## 2. Authentication Flow (oRPC + JWT)
+The application leverages Google OAuth for identity and issues JWTs stored in HTTP-only cookies.
 
 ```mermaid
 sequenceDiagram
     participant User
     participant React UI
+    participant oRPC Client
     participant Express Backend
     participant Postgres DB
     participant Google OAuth
@@ -16,41 +24,40 @@ sequenceDiagram
     User->>React UI: Clicks "Sign in with Google"
     React UI->>Google OAuth: Requests credential
     Google OAuth-->>React UI: Returns Google ID Token
-    React UI->>Express Backend: POST /api/auth/google (Credential)
-     एक्सप्रेस Backend->>Google OAuth: Verifies Token & Audience
-    Google OAuth-->>Express Backend: Valid & Returns Payload (Email, GoogleId)
+    React UI->>oRPC Client: auth.google({ credential })
+    oRPC Client->>Express Backend: POST /api/auth/google
+    Express Backend->>Google OAuth: Verifies Token
+    Google OAuth-->>Express Backend: Valid (Email, GoogleId)
     
     alt User Exists?
-        Express Backend->>Postgres DB: Queries User by Email/GoogleId
-        Postgres DB-->>Express Backend: Returns User Record
+        Express Backend->>Postgres DB: Queries User
     else User is New
-        Express Backend->>Postgres DB: Creates New User Record
-        Postgres DB-->>Express Backend: Returns New User Record
+        Express Backend->>Postgres DB: Creates User
     end
 
-    Express Backend->>Express Backend: Generates JWT with User ID
-    Express Backend-->>React UI: Sets HTTP-Only Cookie + Returns User Data
+    Express Backend->>Express Backend: Generates JWT
+    Express Backend-->>oRPC Client: Sets HTTP-Only Cookie + User Data
+    oRPC Client-->>React UI: Typed User Object
     React UI->>User: Redirects to Dashboard
 ```
 
-## 2. End-to-End Data Flow (Creating a Task)
-This diagram illustrates how data flows from the client to the database when a user performs a standard action, such as creating a new ToDo.
+## 3. End-to-End Data Flow (React Query + oRPC)
+This diagram shows how a "Create ToDo" action travels from the UI through React Query and oRPC to the database.
 
 ```mermaid
 flowchart TD
     %% Frontend
     subgraph Frontend [React Application]
         UI[User Interface]
-        RHF[React Hook Form]
-        Axios[Axios HTTP Client]
+        RQ[TanStack React Query]
+        ORPC[oRPC Client / Link]
     end
 
     %% Backend
     subgraph Backend [Node/Express Server]
-        Router[Express Router]
+        RPC_H[oRPC Handler]
         AuthMid[Auth Middleware]
-        Zod[Zod Validator]
-        Controller[Route Handler]
+        Router[oRPC Router]
     end
 
     %% Database
@@ -59,24 +66,26 @@ flowchart TD
         DB[(PostgreSQL)]
     end
 
-    UI -->|Submits Form| RHF
-    RHF -->|Validates Input| Axios
-    Axios -->|POST /api/todos| Router
+    UI -->|Calls Mutation| RQ
+    RQ -->|Triggers Procedure| ORPC
+    ORPC -->|POST /api/todos/create| RPC_H
     
-    Router --> AuthMid
-    AuthMid -->|Validates JWT Cookie| Zod
-    Zod -->|Ensures Schema Correctness| Controller
-    Controller --> ORM
+    RPC_H --> AuthMid
+    AuthMid -->|Validates JWT Cookie| Router
+    Router -->|Executes Implementation| ORPC_IMPL[Procedure Handler]
+    ORPC_IMPL --> ORM
     
     ORM -->|Executes SQL| DB
-    DB -->|Returns Created Row| ORM
-    ORM -->|Returns Typed Object| Controller
-    Controller -->|201 CREATED| Axios
-    Axios --> UI
+    DB -->|Returns Row| ORM
+    ORM -->|Returns Typed Object| ORPC_IMPL
+    ORPC_IMPL --> RPC_H
+    RPC_H --> ORPC
+    ORPC -->|Updates Cache| RQ
+    RQ --> UI
 ```
 
-## 3. Database Schema
-The database is managed via Orchid ORM. The relational structure is straightforward, focusing on Users and their associated ToDos.
+## 4. Database Schema
+Managed via Orchid ORM.
 
 ```mermaid
 erDiagram
@@ -102,8 +111,8 @@ erDiagram
     }
 ```
 
-## 4. Progressive Web App (PWA) Architecture
-The frontend is configured as a Progressive Web Application via `vite-plugin-pwa`.
+## 5. Progressive Web App (PWA) Architecture
+Powered by `vite-plugin-pwa`.
 
-- **Service Worker (`autoUpdate`):** Automatically generated by Workbox within the Vite build process. It caches the application shell (HTML, bundled JavaScript/CSS, and static assets) to ensure rapid subsequent page loads and provide basic offline shell resilience.
-- **Web App Manifest:** Serves the metadata (such as the app name `TodoFlow`, UI icons, and `standalone` display mode) which triggers browser prompts enabling users to install the application directly to their device's home screen or desktop.
+- **Service Worker:** Automatically generated to cache the application shell and assets for rapid loading and offline resilience.
+- **Web App Manifest:** Provides metadata (`TodoFlow`, icons, `standalone` mode) for device installation.

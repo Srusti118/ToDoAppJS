@@ -17,8 +17,28 @@ const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
 import { RPCHandler } from '@orpc/server/node'
 import { appRouter } from './src/router.js'
 
+const allowedOrigin = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
+
 app.use(cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+    origin: (origin, callback) => {
+        // Allow requests with no origin (like mobile apps or curl)
+        if (!origin) return callback(null, true);
+
+        const normalizedOrigin = origin.replace(/\/$/, '');
+
+        // 1. Exact match with configured FRONTEND_URL
+        if (normalizedOrigin === allowedOrigin) {
+            return callback(null, true);
+        }
+
+        // 2. Allow any preview URL from this specific project
+        if (normalizedOrigin.startsWith('https://to-do-app-js') && normalizedOrigin.endsWith('.vercel.app')) {
+            return callback(null, true);
+        }
+
+        console.warn(`⚠️ CORS Blocked: Origin [${origin}] does not match allowed [${allowedOrigin}]`);
+        callback(new Error('Not allowed by CORS'));
+    },
     credentials: true,
 }))
 
