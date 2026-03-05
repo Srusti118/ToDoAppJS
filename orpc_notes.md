@@ -118,4 +118,9 @@ oRPC is a modern evolution that focuses on:
 ## 5. Revision Checklist
 - [ ] **Contract changed?** Check if you need to update the `input`/`output` in `shared/contract.ts`.
 - [ ] **Procedure added?** Make sure you implement it in `server/router.ts` using `i.newName.handler`.
+
+
+
 - [ ] **Typing `client.` in Frontend?** If you don't see your procedure, check if `AppRouter` is exported in `router.ts`.
+
+
