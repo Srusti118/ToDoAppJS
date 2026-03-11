@@ -48,7 +48,8 @@ export default function App() {
 
     const loginMut = useMutation<any, any, any>({
         ...orpc.auth.login.mutationOptions(),
-        onSuccess: () => {
+        onSuccess: (res) => {
+            if (res.token) localStorage.setItem('auth_token', res.token)
             queryClient.invalidateQueries({ queryKey: orpc.auth.me.key() })
             setGlobalError(null)
         },
@@ -57,7 +58,8 @@ export default function App() {
 
     const registerMut = useMutation<any, any, any>({
         ...orpc.auth.register.mutationOptions(),
-        onSuccess: () => {
+        onSuccess: (res) => {
+            if (res.token) localStorage.setItem('auth_token', res.token)
             queryClient.invalidateQueries({ queryKey: orpc.auth.me.key() })
             setGlobalError(null)
         },
@@ -66,7 +68,8 @@ export default function App() {
 
     const googleMut = useMutation<any, any, any>({
         ...orpc.auth.google.mutationOptions(),
-        onSuccess: () => {
+        onSuccess: (res) => {
+            if (res.token) localStorage.setItem('auth_token', res.token)
             queryClient.invalidateQueries({ queryKey: orpc.auth.me.key() })
             setGlobalError(null)
         },
@@ -76,6 +79,7 @@ export default function App() {
     const logoutMut = useMutation<any, any, any>({
         ...orpc.auth.logout.mutationOptions(),
         onSuccess: () => {
+            localStorage.removeItem('auth_token')
             queryClient.resetQueries({ queryKey: orpc.auth.me.key() })
             queryClient.resetQueries({ queryKey: orpc.todos.list.key() })
         }

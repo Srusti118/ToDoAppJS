@@ -31,8 +31,9 @@ const todoOutputSchema = z.object({
 const userOutputSchema = z.object({
     id: z.number(),
     username: z.string(),
-    email: z.string().nullable(),
-    googleId: z.string().nullable()
+    email: z.string().nullish(),
+    googleId: z.string().nullish(),
+    token: z.string().optional()
 })
 
 export const googleAuthSchema = z.object({ credential: z.string() })

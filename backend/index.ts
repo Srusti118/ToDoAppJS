@@ -26,8 +26,8 @@ app.use(cors({
 
         const normalizedOrigin = origin.replace(/\/$/, '');
 
-        // 1. Exact match with configured FRONTEND_URL
-        if (normalizedOrigin === allowedOrigin) {
+        // 1. Exact match with configured FRONTEND_URL or any localhost (for Flutter dev)
+        if (normalizedOrigin === allowedOrigin || normalizedOrigin.startsWith('http://localhost:')) {
             return callback(null, true);
         }
 
@@ -46,40 +46,64 @@ app.use(express.json())
 app.use(cookieParser())
 
 
+app.use((req, res, next) => {
+    console.log(`\n--- [${new Date().toISOString()}] ${req.method} ${req.url} ---`);
+    console.log('Headers:', JSON.stringify(req.headers, null, 2));
+    console.log('Body:', JSON.stringify(req.body, null, 2));
+    next();
+});
+
 const rpcHandler = new RPCHandler(appRouter);
 
 app.use('/api', async (req: Request, res: Response, next) => {
-    // ORPC StandardUrl uses originalUrl which includes '/api'.
-    // Use req.url which has the prefix stripped by Express so it matches our AppRouter config.
-    const savedOriginal = req.originalUrl;
-    req.originalUrl = req.url;
+    console.log(`\n[API Trace] ${req.method} ${req.originalUrl}`);
+    console.log(`[API Trace] Raw Body State:`, JSON.stringify(req.body, null, 2));
 
     let userId: number | undefined;
-    const token = req.cookies?.auth_token;
+    let token = req.cookies?.auth_token;
+
+    if (!token && req.headers.authorization?.startsWith('Bearer ')) {
+        token = req.headers.authorization.split(' ')[1];
+        console.log(`[API Trace] Extracted Bearer token`);
+    }
+
     if (token) {
         try {
             const decoded = jwt.verify(token, JWT_SECRET) as { userId: number };
             userId = decoded.userId;
+            console.log(`[API Trace] User verified: ${userId}`);
         } catch (e) {
-            // Invalid token, ignore and let ORPC protected routes reject it
+            console.log(`[API Trace] Token invalid`);
         }
     }
 
     try {
+        console.log(`[API Trace] Handing over to rpcHandler (prefix: /api)...`);
         const { matched } = await rpcHandler.handle(req, res, {
+            prefix: '/api',
             context: {
                 userId,
                 res
             }
         });
 
-        req.originalUrl = savedOriginal;
+        console.log(`[API Trace] oRPC matched: ${matched}`);
 
         if (!matched) {
             next();
         }
     } catch (e: any) {
-        req.originalUrl = savedOriginal;
+
+        // Handle ORPC errors specifically to expose validation issues
+        if (e.code === 'BAD_REQUEST' && e.data?.issues) {
+            console.error('[ORPC Validation Error]', JSON.stringify(e.data.issues, null, 2));
+            return res.status(400).json({
+                message: 'Input validation failed',
+                issues: e.data.issues
+            });
+        }
+
+        console.error('[API Error]', e);
         next(e);
     }
 });

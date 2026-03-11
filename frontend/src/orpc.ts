@@ -17,7 +17,20 @@ if (API_URL) {
 export const orpcClient = createORPCClient<ContractRouterClient<AppContract>>(
     new RPCLink({
         url: `${API_URL}/api`,
-        fetch: (request, init) => fetch(request, { ...init, credentials: 'include' })
+        fetch: (request, init) => {
+            const token = localStorage.getItem('auth_token')
+            const headers = new Headers((init as any)?.headers)
+
+            if (token) {
+                headers.set('Authorization', `Bearer ${token}`)
+            }
+
+            return fetch(request, {
+                ...(init as any),
+                headers,
+                credentials: 'include'
+            })
+        }
     })
 )
 
