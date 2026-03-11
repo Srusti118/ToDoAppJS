@@ -19,16 +19,24 @@ export const orpcClient = createORPCClient<ContractRouterClient<AppContract>>(
         url: `${API_URL}/api`,
         fetch: (request, init) => {
             const token = localStorage.getItem('auth_token')
-            const headers = new Headers((init as any)?.headers)
+            
+            // CRITICAL: Load headers from the Request object first, then merge from init
+            const headers = new Headers(request.headers)
+            if ((init as any)?.headers) {
+                const initHeaders = new Headers((init as any).headers)
+                initHeaders.forEach((value, key) => headers.set(key, value))
+            }
 
             if (token) {
                 headers.set('Authorization', `Bearer ${token}`)
             }
 
+            // Force Content-Type to application/json to ensure backend parses body correctly
+            headers.set('Content-Type', 'application/json')
+
             return fetch(request, {
                 ...(init as any),
                 headers,
-                credentials: 'include'
             })
         }
     })

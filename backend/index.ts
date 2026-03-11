@@ -40,9 +40,10 @@ app.use(cors({
         callback(new Error('Not allowed by CORS'));
     },
     credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
 }))
 
-app.use(express.json())
+app.use(express.json({ type: ['application/json', 'text/plain'] }))
 app.use(cookieParser())
 
 
@@ -57,17 +58,24 @@ const rpcHandler = new RPCHandler(appRouter);
 
 app.use('/api', async (req: Request, res: Response, next) => {
     console.log(`\n[API Trace] ${req.method} ${req.originalUrl}`);
+    console.log(`[API Trace] Content-Type: ${req.headers['content-type']}`);
     console.log(`[API Trace] Raw Body State:`, JSON.stringify(req.body, null, 2));
 
     let userId: number | undefined;
-    let token = req.cookies?.auth_token;
+    let token: string | undefined;
 
-    if (!token && req.headers.authorization?.startsWith('Bearer ')) {
+    // 1. Prioritize Authorization header (Bearer token) over cookies
+    // This is vital for Web browsers to ignore stale cookies in favor of localStorage tokens
+    if (req.headers.authorization?.startsWith('Bearer ')) {
         token = req.headers.authorization.split(' ')[1];
-        console.log(`[API Trace] Extracted Bearer token`);
+        console.log(`[API Trace] Extracted Bearer token from header`);
+    } else if (req.cookies?.auth_token) {
+        token = req.cookies.auth_token;
+        console.log(`[API Trace] Found auth_token in cookies`);
     }
 
     if (token) {
+        console.log(`[API Trace] Token length: ${token.length}`);
         try {
             const decoded = jwt.verify(token, JWT_SECRET) as { userId: number };
             userId = decoded.userId;
@@ -96,10 +104,12 @@ app.use('/api', async (req: Request, res: Response, next) => {
 
         // Handle ORPC errors specifically to expose validation issues
         if (e.code === 'BAD_REQUEST' && e.data?.issues) {
-            console.error('[ORPC Validation Error]', JSON.stringify(e.data.issues, null, 2));
+            console.error('[ORPC Validation Error Details]:', JSON.stringify(e.data.issues, null, 2));
+            console.error('[Full Body at Failure]:', JSON.stringify(req.body, null, 2));
             return res.status(400).json({
                 message: 'Input validation failed',
-                issues: e.data.issues
+                issues: e.data.issues,
+                debug_body: req.body // Temporary for debugging
             });
         }
 
